@@ -349,6 +349,7 @@ kbd{padding:1px 5px;border:1px solid #52617b;border-bottom-width:3px;border-radi
  let rotor=0,aimAngle=0,shake=0,flash=0,chronos=0,toastTimer=0,hudTimer=0;
  let runEarned=0,runSpent=0,entityId=0,lastFrame=0;
  let carriedSupply=0,bankedSupply=0,supplyTimer=4,baseDamageRank=0,baseFireRank=0,coreRank=0,commandCore=null;
+ let assaultPhase="scavenge",phaseTimer=60,assaultNumber=0,assaultAngle=0,assaultSpawnTimer=0,resourceSites=[];
  let classId=meta.frame,runMods={damage:1,speed:1,regen:0,scrap:1,structure:1,discount:1};
  let player={x:0,y:0,vx:0,vy:0,radius:13,hp:100,maxHp:100,invincible:0};
  let camera={x:0,y:0};
@@ -411,7 +412,14 @@ kbd{padding:1px 5px;border:1px solid #52617b;border-bottom-width:3px;border-radi
   dirty=true;
   return whole;
  }
- function cost(type) {return Math.ceil(buildTypes[type].cost*(classId===0 ? .8 : 1));}
+ function cost(type){const a=[5,7,2,6,0];return Math.max(1,Math.ceil(a[type]*(classId===0?.8:1)));}
+ function phaseName(){return assaultPhase==="scavenge"?"SCAVENGE":assaultPhase==="warning"?"ASSAULT WARNING":assaultPhase==="assault"?"BASE ASSAULT":"RECOVERY";}
+ function directionName(a){const n=["EAST","SOUTHEAST","SOUTH","SOUTHWEST","WEST","NORTHWEST","NORTH","NORTHEAST"];return n[Math.round(((a%TAU+TAU)%TAU)/(TAU/8))%8];}
+ function createResourceSites(){resourceSites=[];for(let i=0;i<7;i++){const a=i*TAU/7+rand(-.25,.25),r=rand(560,980);resourceSites.push({x:Math.cos(a)*r,y:Math.sin(a)*r,stock:i<3?5:Math.floor(rand(6,10)),cooldown:0,phase:rand(0,TAU)});}}
+ function updateResourceSites(dt){for(const s of resourceSites){s.phase+=dt;s.cooldown=Math.max(0,s.cooldown-dt);if(s.stock<=0&&s.cooldown<=0){s.stock=Math.random()<.3?8:5;s.cooldown=45;}if(s.stock>0&&s.cooldown<=0&&Math.hypot(player.x-s.x,player.y-s.y)<42){const take=Math.min(s.stock,Math.random()<.2?3:2);s.stock-=take;carriedSupply+=take;s.cooldown=s.stock<=0?45:1.2;floating(s.x,s.y-18,"+"+take+" SUPPLY","#9fe870",true);toast("SUPPLY ACQUIRED // RETURN IT TO THE COMMAND CORE",1.7);audio.play("build");}}}
+ function spawnAssaultEnemy(){if(!commandCore)return;const r=rand(620,820),a=assaultAngle+rand(-.38,.38),old={x:camera.x,y:camera.y};camera.x=commandCore.x+Math.cos(a)*r-W/2;camera.y=commandCore.y+Math.sin(a)*r-H/2;const type=time>330&&Math.random()<.28?2:time>150&&Math.random()<.22?1:0;spawnEnemy(type);camera.x=old.x;camera.y=old.y;}
+ function setPhase(n,d){assaultPhase=n;phaseTimer=d;if(n==="warning"){assaultAngle=rand(0,TAU);toast("⚠ "+directionName(assaultAngle)+" ASSAULT INBOUND // RETURN TO CORE",4);audio.play("boss");}if(n==="assault"){assaultNumber++;assaultSpawnTimer=0;toast("BASE ASSAULT "+assaultNumber+" // "+directionName(assaultAngle)+" FRONT",3);}if(n==="recovery")toast("ASSAULT BROKEN // REPAIR AND RESUPPLY",3);if(n==="scavenge")toast("SCAVENGE WINDOW // PUSH OUT FOR SUPPLY",2.5);}
+ function updateAssault(dt){phaseTimer-=dt;if(assaultPhase==="warning"&&phaseTimer<=0)setPhase("assault",45);else if(assaultPhase==="assault"){assaultSpawnTimer-=dt;if(assaultSpawnTimer<=0){const n=1+Math.floor(assaultNumber/2);for(let i=0;i<n;i++)spawnAssaultEnemy();assaultSpawnTimer=Math.max(.38,1.15-assaultNumber*.09);}if(phaseTimer<=0)setPhase("recovery",20);}else if(assaultPhase==="recovery"&&phaseTimer<=0)setPhase("scavenge",60);else if(assaultPhase==="scavenge"&&phaseTimer<=0)setPhase("warning",15);}
  function traitCost(index) {
   return Math.ceil(traits[index].base*Math.pow(meta.ranks[index]+1,traits[index].exponent));
  }
@@ -429,9 +437,9 @@ kbd{padding:1px 5px;border:1px solid #52617b;border-bottom-width:3px;border-radi
   $("xpFill").style.width=clamp(xp/xpGoal,0,1)*100+"%";
   document.querySelectorAll("[data-build]").forEach(button=>{
    const type=Number(button.dataset.build);
-   button.querySelector("small").textContent=cost(type)+" SCRAP";
+   button.querySelector("small").textContent=cost(type)+" SUPPLY";
    button.classList.toggle("selected",blueprint===type);
-   button.style.opacity=state==="playing" && meta.scrap<cost(type) ? ".5" : "1";
+   button.style.opacity=state==="playing" && bankedSupply<cost(type) ? ".5" : "1";
   });
  }
  function updateLoadout() {
@@ -523,19 +531,19 @@ kbd{padding:1px 5px;border:1px solid #52617b;border-bottom-width:3px;border-radi
    discount:classId===0 ? .8 : 1
   };
   time=kills=xp=spawnTimer=shootTimer=shake=flash=chronos=rotor=laserTimer=0;
-  runEarned=runSpent=entityId=0;carriedSupply=bankedSupply=baseDamageRank=baseFireRank=coreRank=0;supplyTimer=4;commandCore=null;
-  level=1;xpGoal=24;nextBoss=60;chainTimer=2;frostTimer=3;
+  runEarned=runSpent=entityId=0;carriedSupply=bankedSupply=baseDamageRank=baseFireRank=coreRank=0;supplyTimer=4;commandCore=null;assaultPhase="scavenge";phaseTimer=60;assaultNumber=0;assaultAngle=0;assaultSpawnTimer=0;resourceSites=[];
+  level=1;xpGoal=24;nextBoss=180;chainTimer=2;frostTimer=3;
   freeChoices=0;ranks.fill(0);ranks[0]=1;evolved.fill(false);
   if(classId===1) ranks[1]=1;
   const maxHp=100+meta.ranks[2]*10-(classId===2 ? 25 : 0);
   player={x:0,y:95,vx:0,vy:0,radius:13,hp:maxHp,maxHp,invincible:0};
   camera={x:0,y:60};aimAngle=-Math.PI/2;
-  commandCore=createStructure(4,0,0,true);
+  commandCore=createStructure(4,0,0,true);createResourceSites();bankedSupply=8;
   if(classId===0) createStructure(0,-75,0,true);
   state="playing";overlay.classList.add("hidden");
   $("pauseButton").textContent="PAUSE · P";
   updateHud();updateLoadout();
-  toast("ESTABLISH THE CORE // SCAVENGE SUPPLY // RETURN // EXPAND.",4);
+  toast("SCAVENGE WINDOW // 60 SEC // FIND SUPPLY AND FORTIFY THE CORE",4);
   for(let i=0;i<5;i++) spawnEnemy(0);
  }
  function togglePause() {
@@ -571,7 +579,7 @@ kbd{padding:1px 5px;border:1px solid #52617b;border-bottom-width:3px;border-radi
     <div class="result"><span class="label">LEVEL</span><strong>${level}</strong></div>
    </div>
    <div class="scrap-balance">⬡ ${meta.scrap.toLocaleString()} TOTAL SCRAP</div>
-   <div class="notice">Recovered this run: ${runEarned.toLocaleString()} · Spent building: ${runSpent.toLocaleString()} · Best: ${fmt(meta.best)}</div>
+   <div class="notice">Recovered Scrap: ${runEarned.toLocaleString()} · Supply spent on base: ${runSpent.toLocaleString()} · Best: ${fmt(meta.best)}</div>
    <div class="actions">
     <button class="primary" id="again">PLAY AGAIN · R</button>
     <button class="secondary" id="endWorkshop">WORKSHOP · U</button>
@@ -729,7 +737,7 @@ kbd{padding:1px 5px;border:1px solid #52617b;border-bottom-width:3px;border-radi
   if(!s) return null;
   if(!free && type!==4) {
    const price=cost(type);
-   meta.scrap-=price;runSpent+=price;dirty=true;save();
+   bankedSupply-=price;runSpent+=price;
   }
   grid.rebuild();burst(x,y,b.color,18,130);audio.play("build");
   return s;
@@ -748,12 +756,12 @@ kbd{padding:1px 5px;border:1px solid #52617b;border-bottom-width:3px;border-radi
     wallLineStart={x:p.x,y:p.y};$("placementText").textContent="WALL START SET · move and click to confirm the wall line · ESC cancels";audio.play("build");return;
    }
    const pts=wallLinePoints(wallLineStart,p),price=cost(2)*pts.length;
-   if(meta.scrap<price){toast("NEED "+price+" SCRAP FOR "+pts.length+" WALL SECTIONS",2);return;}
+   if(bankedSupply<price){toast("NEED "+price+" SUPPLY FOR "+pts.length+" WALL SECTIONS",2);return;}
    if(structures.free.length<pts.length){toast("STRUCTURE CAP // SHORTEN THE WALL",2);return;}
-   for(const q of pts){if(meta.scrap<cost(2))break;createStructure(2,q.x,q.y);}
+   for(const q of pts){if(bankedSupply<cost(2))break;createStructure(2,q.x,q.y);}
    toast("WALL DEPLOYED // "+pts.length+" SECTIONS",1.5);cancelBlueprint();updateHud();return;
   }
-  if(!placementValid(blueprint,p.x,p.y)){toast(meta.scrap<cost(blueprint)?"NOT ENOUGH SCRAP":"INVALID POSITION // MOVE CLOSER OR CLEAR THE AREA",2);return;}
+  if(!placementValid(blueprint,p.x,p.y)){toast(bankedSupply<cost(blueprint)?"NOT ENOUGH SUPPLY":"INVALID POSITION // MOVE CLOSER OR CLEAR THE AREA",2);return;}
   createStructure(blueprint,p.x,p.y);cancelBlueprint();updateHud();
  }
 
@@ -1069,7 +1077,7 @@ kbd{padding:1px 5px;border:1px solid #52617b;border-bottom-width:3px;border-radi
     } else s.timer=.12;
    }
    if(s.type===1) {
-    gainScrap(4);floating(s.x,s.y,"+4 ⬡","#ffdc82");
+    bankedSupply+=1;floating(s.x,s.y,"+1 SUPPLY","#ffdc82");
     ring(s.x,s.y,145,"#ffb86f",.45);
     grid.query(s.x,s.y,190,"enemies",e=>{
      if(e.type!==0 || dist(e,s)>145+e.radius) return;
@@ -1118,7 +1126,7 @@ kbd{padding:1px 5px;border:1px solid #52617b;border-bottom-width:3px;border-radi
    const frozen=chronos>0 || e.freeze>0;
    if(frozen) continue;
    e.phase+=dt*(e.type===3 ? 1.35 : 3);
-   const target=(commandCore&&!commandCore.dead&&(e.type===3||dist(e,commandCore)<360))?commandCore:player;
+   const target=(commandCore&&!commandCore.dead&&(assaultPhase==="assault"||e.type===3||dist(e,commandCore)<360))?commandCore:player;
    const dx=target.x-e.x,dy=target.y-e.y,d=Math.hypot(dx,dy)||1;const angle=Math.atan2(dy,dx);
    let blocker=null,best=Infinity;
    const ahead=Math.min(d,110);
@@ -1264,7 +1272,7 @@ kbd{padding:1px 5px;border:1px solid #52617b;border-bottom-width:3px;border-radi
   chronos=Math.max(0,chronos-dt);
   player.invincible=Math.max(0,player.invincible-dt);
   player.hp=Math.min(player.maxHp,player.hp+(runMods.regen+ranks[6]*.45)*dt);
-  supplyTimer-=dt;if(supplyTimer<=0){spawnSupplyCache();supplyTimer=rand(22,34);}
+  updateAssault(dt);updateResourceSites(dt);
   if(commandCore&&!commandCore.dead&&dist(player,commandCore)<75&&carriedSupply>0){bankedSupply+=carriedSupply;floating(commandCore.x,commandCore.y-45,"+"+carriedSupply+" SUPPLY","#9fffaa",true);toast("SUPPLY SECURED // "+bankedSupply+" AVAILABLE FOR BASE UPGRADES",2.2);carriedSupply=0;audio.play("build");}
   rotor+=dt*(2.4+ranks[1]*.12)*(classId===1 ? 1.3 : 1);
   cleanDead();grid.rebuild();
@@ -1281,7 +1289,7 @@ kbd{padding:1px 5px;border:1px solid #52617b;border-bottom-width:3px;border-radi
   const tracking=1-Math.exp(-8*dt);
   camera.x+=(player.x-camera.x)*tracking;camera.y+=(player.y-camera.y)*tracking;
 
-  if(time>=nextBoss){spawnEnemy(3);nextBoss+=60;}
+  if(time>=nextBoss){spawnEnemy(3);nextBoss+=180;}
   spawnTimer-=dt;
   if(spawnTimer<=0) {
    const minute=time/60,count=1+Math.floor(minute/2);
@@ -1575,9 +1583,9 @@ kbd{padding:1px 5px;border:1px solid #52617b;border-bottom-width:3px;border-radi
   const p=mouseWorld(),valid=placementValid(blueprint,p.x,p.y),b=buildTypes[blueprint];
   if(blueprint===2 && wallLineStart){
    const pts=wallLinePoints(wallLineStart,p),price=cost(2)*pts.length;
-   ctx.save();ctx.globalAlpha=.75;ctx.strokeStyle=meta.scrap>=price?"#c1a1ff":"#ff5b6e";ctx.lineWidth=8;ctx.setLineDash([12,7]);ctx.beginPath();ctx.moveTo(wallLineStart.x,wallLineStart.y);ctx.lineTo(p.x,p.y);ctx.stroke();ctx.setLineDash([]);
-   for(const q of pts) circle(q.x,q.y,10,meta.scrap>=price?"#c1a1ff33":"#ff5b6e33",meta.scrap>=price?"#d9c6ff":"#ff8a98",1.5);
-   ctx.fillStyle=meta.scrap>=price?"#e8ddff":"#ff9daa";ctx.font="bold 11px system-ui";ctx.textAlign="center";ctx.fillText(pts.length+" SECTIONS · "+price+" SCRAP",p.x,p.y-28);ctx.restore();return;
+   ctx.save();ctx.globalAlpha=.75;ctx.strokeStyle=bankedSupply>=price?"#c1a1ff":"#ff5b6e";ctx.lineWidth=8;ctx.setLineDash([12,7]);ctx.beginPath();ctx.moveTo(wallLineStart.x,wallLineStart.y);ctx.lineTo(p.x,p.y);ctx.stroke();ctx.setLineDash([]);
+   for(const q of pts) circle(q.x,q.y,10,bankedSupply>=price?"#c1a1ff33":"#ff5b6e33",bankedSupply>=price?"#d9c6ff":"#ff8a98",1.5);
+   ctx.fillStyle=bankedSupply>=price?"#e8ddff":"#ff9daa";ctx.font="bold 11px system-ui";ctx.textAlign="center";ctx.fillText(pts.length+" SECTIONS · "+price+" SUPPLY",p.x,p.y-28);ctx.restore();return;
   }
   circle(player.x,player.y,PLACE_RANGE+coreRank*45,"#71f6ff04","#71f6ff44");
   ctx.save();ctx.globalAlpha=.7;
@@ -1591,13 +1599,15 @@ kbd{padding:1px 5px;border:1px solid #52617b;border-bottom-width:3px;border-radi
    hp:1,maxHp:1,aim:aimAngle,flash:0},true);
   ctx.restore();
   ctx.fillStyle=valid ? "#aaffee" : "#ff8ba9";ctx.textAlign="center";ctx.font="bold 10px system-ui";
-  ctx.fillText(valid ? "PLACE · "+cost(blueprint)+" ⬡" : "BLOCKED / COST / CAP",p.x,p.y-b.radius-23);
+  ctx.fillText(valid ? "PLACE · "+cost(blueprint)+" SUPPLY" : "BLOCKED / COST / CAP",p.x,p.y-b.radius-23);
  }
+ function drawResourceSites(){for(const s of resourceSites){if(!visible(s.x,s.y,70))continue;ctx.save();ctx.translate(s.x,s.y);ctx.rotate(s.phase*.25);circle(0,0,30,"#13231a","#9fe87088",2);polygon(18,6,Math.PI/6);ctx.fillStyle=s.stock>0?"#9fe87033":"#273329";ctx.fill();ctx.strokeStyle=s.stock>0?"#b9ff91":"#56645b";ctx.stroke();ctx.rotate(-s.phase*.25);ctx.fillStyle=s.stock>0?"#d8ffc6":"#7d8b82";ctx.font="900 10px system-ui";ctx.textAlign="center";ctx.fillText(s.stock>0?"SUPPLY "+s.stock:"DEPLETED",0,4);ctx.restore();}}
+ function drawPhaseHud(){if(state!=="playing")return;ctx.save();ctx.textAlign="center";ctx.font="900 12px system-ui";const d=assaultPhase==="warning"||assaultPhase==="assault";ctx.fillStyle=d?"#ff7888":"#9fe870";ctx.fillText(phaseName()+" · "+Math.max(0,Math.ceil(phaseTimer))+"s"+(d?" · "+directionName(assaultAngle):""),W/2,34);ctx.restore();}
  function draw() {
   ctx.setTransform(dpr*scale,0,0,dpr*scale,0,0);floor();
   ctx.save();
   ctx.translate(W/2-camera.x+(shake ? rand(-shake,shake) : 0),H/2-camera.y+(shake ? rand(-shake,shake) : 0));
-  drawLaserLinks();
+  drawLaserLinks();drawResourceSites();
   for(const p of pickups.active) pickupArt(p);
   for(const c of caches.active) cacheArt(c);
   for(const s of structures.active) if(!s.dead && visible(s.x,s.y,50)) structureArt(s);
@@ -1629,7 +1639,7 @@ kbd{padding:1px 5px;border:1px solid #52617b;border-bottom-width:3px;border-radi
    if(n.big){ctx.shadowColor=n.color;ctx.shadowBlur=9;}
    ctx.fillStyle=n.color;ctx.fillText(n.text,n.x,n.y);ctx.shadowBlur=0;
   }
-  ctx.globalAlpha=1;drawBlueprint();ctx.restore();
+  ctx.globalAlpha=1;drawBlueprint();ctx.restore();drawPhaseHud();
 
   const vignette=ctx.createRadialGradient(W/2,H/2,Math.min(W,H)*.25,W/2,H/2,Math.max(W,H)*.65);
   vignette.addColorStop(0,"rgba(0,0,0,0)");vignette.addColorStop(1,"rgba(2,5,14,.65)");
