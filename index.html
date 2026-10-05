@@ -5,9 +5,9 @@
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <title>NEON REVENANT — Fortress Protocol</title>
 <style>
-:root{color-scheme:dark;--cyan:#71f6ff;--pink:#ff548b;--gold:#ffdc82;--ink:#080c18}
+:root{color-scheme:dark;--cyan:#64e8d4;--pink:#ff5b6e;--gold:#f4c96b;--green:#9fe870;--ink:#070b0d}
 *{box-sizing:border-box}
-html,body{margin:0;width:100%;height:100%;overflow:hidden;background:var(--ink);color:#eef5ff;font-family:system-ui,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif}
+html,body{margin:0;width:100%;height:100%;overflow:hidden;background:var(--ink);color:#edf5ef;font-family:system-ui,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif}
 button{font:inherit;cursor:pointer}
 canvas{display:block;width:100%;height:100%;touch-action:none}
 button:focus-visible{outline:3px solid white;outline-offset:4px}
@@ -27,8 +27,10 @@ button:disabled{opacity:.4;cursor:not-allowed}
 #hpFill{background:linear-gradient(90deg,#ff447c,#ff9c9c)}
 #xpFill{background:linear-gradient(90deg,#39b9fc,#8effe8)}
 .xp{height:5px;margin-top:8px}
-#buildbar{position:fixed;bottom:17px;left:50%;transform:translateX(-50%);display:flex;gap:7px;padding:8px;border:1px solid #344863;background:#091120e8;border-radius:12px}
-#basebar{position:fixed;bottom:86px;left:50%;transform:translateX(-50%);display:flex;gap:7px;padding:7px;border:1px solid #526a4b;background:#0d1713e8;border-radius:10px}
+#buildbar{position:fixed;bottom:17px;left:50%;transform:translateX(-50%);display:flex;gap:7px;padding:22px 8px 8px;border:1px solid #38504d;background:#091211ee;border-radius:12px;box-shadow:0 10px 30px #0008}
+#buildbar:before{content:"BUILD";position:absolute;top:6px;left:10px;font-size:8px;letter-spacing:2px;color:#7f9f99;font-weight:900}
+#basebar:before{content:"CORE UPGRADES";position:absolute;top:6px;left:10px;font-size:8px;letter-spacing:2px;color:#89ad82;font-weight:900}
+#basebar{position:fixed;bottom:98px;left:50%;transform:translateX(-50%);display:flex;gap:7px;padding:22px 7px 7px;border:1px solid #526a4b;background:#0d1713ee;border-radius:10px;box-shadow:0 10px 30px #0007}
 .base-button{min-width:104px;padding:8px 10px;border:1px solid #526a4b;border-radius:7px;background:#14231b;color:#dfffe8;font-size:10px;font-weight:800}.base-button small{display:block;margin-top:3px;color:#9fffaa;font-size:9px}.base-button:hover{border-color:#9fffaa}
 .build-button{min-width:78px;padding:9px 10px;border:1px solid #34425c;border-radius:7px;background:#111c30;color:#dceaff}
 .build-button strong{display:block;font-size:11px}
@@ -63,8 +65,11 @@ kbd{padding:1px 5px;border:1px solid #52617b;border-bottom-width:3px;border-radi
 .frame:hover,.card:hover{border-color:var(--accent,var(--cyan));background:#18283f}
 .frame strong,.card-title,.trait strong{display:block;font-size:16px;margin-bottom:7px}
 .frame p,.card-desc,.trait p{margin:0;font-size:12px;line-height:1.6;color:#aebed7}
-.card{min-height:210px;transition:transform .12s}
-.card:hover{transform:translateY(-4px)}
+.card{min-height:210px;transition:transform .18s,box-shadow .18s;animation:cardIn .28s ease both}.card:nth-child(2){animation-delay:.05s}.card:nth-child(3){animation-delay:.1s}
+.card:hover{transform:translateY(-7px) scale(1.015);box-shadow:0 14px 35px #0008}
+@keyframes cardIn{from{opacity:0;transform:translateY(18px) scale(.97)}to{opacity:1;transform:none}}
+#overlay.upgrade-mode{background:#020807dc;backdrop-filter:blur(10px)}
+#overlay.upgrade-mode .panel{border-color:#64e8d477;box-shadow:0 30px 120px #000b,0 0 55px #64e8d412}
 .card-icon{font-size:29px;color:var(--accent);margin-bottom:13px}
 .card-rank{display:flex;justify-content:space-between;margin-top:15px;color:var(--accent);font-size:10px;letter-spacing:1px}
 .workshop{display:grid;grid-template-columns:repeat(2,1fr);gap:12px;margin-top:20px}
@@ -118,15 +123,15 @@ kbd{padding:1px 5px;border:1px solid #52617b;border-bottom-width:3px;border-radi
 <div id="placement"><span id="placementText"></span><button id="cancelBuild">CANCEL</button></div>
 
 <div id="basebar">
- <button class="base-button" data-base-upgrade="damage">8 · ARMORY<small id="damageUpgradeText">+TURRET DMG · 6 SUPPLY</small></button>
- <button class="base-button" data-base-upgrade="fire">9 · AUTOLOADER<small id="fireUpgradeText">+FIRE RATE · 6 SUPPLY</small></button>
- <button class="base-button" data-base-upgrade="core">0 · CORE EXPAND<small id="coreUpgradeText">+HP / BUILD RANGE · 8 SUPPLY</small></button>
+ <button class="base-button" data-base-upgrade="damage">ARMORY <kbd>8</kbd><small id="damageUpgradeText">+TURRET DMG · 6 SUPPLY</small></button>
+ <button class="base-button" data-base-upgrade="fire">AUTOLOADER <kbd>9</kbd><small id="fireUpgradeText">+FIRE RATE · 6 SUPPLY</small></button>
+ <button class="base-button" data-base-upgrade="core">CORE EXPAND <kbd>0</kbd><small id="coreUpgradeText">+HP / BUILD RANGE · 8 SUPPLY</small></button>
 </div>
 <div id="buildbar">
- <button class="build-button" data-build="0"><strong>4 · TURRET</strong><small>35 SCRAP</small></button>
- <button class="build-button" data-build="1"><strong>5 · SIPHON</strong><small>50 SCRAP</small></button>
- <button class="build-button" data-build="2"><strong>6 · WALL</strong><small>15 SCRAP</small></button>
- <button class="build-button" data-build="3"><strong>7 · REPAIR</strong><small>45 SCRAP</small></button>
+ <button class="build-button" data-build="0"><strong>TURRET <kbd>4</kbd></strong><small>35 SCRAP</small></button>
+ <button class="build-button" data-build="1"><strong>SIPHON <kbd>5</kbd></strong><small>50 SCRAP</small></button>
+ <button class="build-button" data-build="2"><strong>WALL LINE <kbd>6</kbd></strong><small>15 SCRAP</small></button>
+ <button class="build-button" data-build="3"><strong>REPAIR <kbd>7</kbd></strong><small>45 SCRAP</small></button>
 </div>
 
 <div id="tools">
@@ -215,7 +220,7 @@ kbd{padding:1px 5px;border:1px solid #52617b;border-bottom-width:3px;border-radi
   }
  }
  const enemies = new Pool(540);
- const structures = new Pool(24);
+ const structures = new Pool(80);
  const projectiles = new Pool(1100);
  const particles = new Pool(1800);
  const numbers = new Pool(220);
@@ -350,7 +355,7 @@ kbd{padding:1px 5px;border:1px solid #52617b;border-bottom-width:3px;border-radi
  const ranks=Array(8).fill(0);
  const evolved=[false,false,false,false];
  const keys=new Set();
- let blueprint=-1,mouse={x:600,y:380};
+ let blueprint=-1,wallLineStart=null,mouse={x:600,y:380};
  let touch={active:false,id:null,x:0,y:0,dx:0,dy:0,placing:false};
  let choiceEntries=[],choiceReason="level",freeChoices=0,workshopOrigin="menu";
  let slot={elapsed:0,tier:1,lastTick:-1};
@@ -415,11 +420,10 @@ kbd{padding:1px 5px;border:1px solid #52617b;border-bottom-width:3px;border-radi
   $("kills").textContent=kills.toLocaleString();
   $("level").textContent=level;
   $("scrap").textContent=meta.scrap.toLocaleString();
-  if(commandCore&&!commandCore.dead)$("frameLabel").textContent="INTEGRITY · CORE "+Math.ceil(commandCore.hp)+"/"+commandCore.maxHp+" · SUPPLY "+bankedSupply+" (CARRY "+carriedSupply+")";
   $("damageUpgradeText").textContent="+TURRET DMG · "+baseUpgradeCost("damage")+" SUPPLY · R"+baseDamageRank;
   $("fireUpgradeText").textContent="+FIRE RATE · "+baseUpgradeCost("fire")+" SUPPLY · R"+baseFireRank;
   $("coreUpgradeText").textContent="+HP / BUILD RANGE · "+baseUpgradeCost("core")+" SUPPLY · R"+coreRank;
-  $("frameLabel").textContent=frames[classId].name.toUpperCase()+" · INTEGRITY";
+  $("frameLabel").textContent=frames[classId].name.toUpperCase()+" · HP  |  CORE "+(commandCore&&!commandCore.dead?Math.ceil(commandCore.hp)+"/"+commandCore.maxHp:"OFFLINE")+"  |  SUPPLY "+bankedSupply+(carriedSupply?" +"+carriedSupply+" CARRY":"");
   $("hpText").textContent=Math.ceil(player.hp)+" / "+player.maxHp;
   $("hpFill").style.width=clamp(player.hp/player.maxHp,0,1)*100+"%";
   $("xpFill").style.width=clamp(xp/xpGoal,0,1)*100+"%";
@@ -439,11 +443,11 @@ kbd{padding:1px 5px;border:1px solid #52617b;border-bottom-width:3px;border-radi
  }
 
  function mainMenu() {
-  state="menu";cancelBlueprint();classId=meta.frame;clearInput();updateHud();
+  overlay.classList.remove("upgrade-mode");state="menu";cancelBlueprint();classId=meta.frame;clearInput();updateHud();
   show(`
-   <div class="eyebrow">FORTRESS PROTOCOL · TEN-MINUTE SURVIVAL</div>
-   <h1>NEON<br><span>REVENANT</span></h1>
-   <p class="sub">Build a foothold. Evolve your arsenal. Break the signal.<br>Collected Scrap persists between runs. Deployables spend that same balance.</p>
+   <div class="eyebrow">OUTPOST 07 · LAST-LIGHT DEFENSE PROTOCOL</div>
+   <h1>NEON<br><span>REVENANT</span></h1><div class="notice">FORTIFY · SCAVENGE · SURVIVE</div>
+   <p class="sub">The perimeter is failing. Fortify the Command Core, push into hostile ground for Supply, and return before the next Warden reaches your walls.<br>Scrap persists between deployments. Supply powers your base during the run.</p>
    <div class="scrap-balance">⬡ ${meta.scrap.toLocaleString()} SCRAP</div>
    <div class="frames">${frames.map((f,i)=>`
     <button class="frame ${meta.frame===i ? "selected" : ""}" data-frame="${i}">
@@ -591,6 +595,7 @@ kbd{padding:1px 5px;border:1px solid #52617b;border-bottom-width:3px;border-radi
   return array;
  }
  function openChoices(reason="level") {
+  overlay.classList.add("upgrade-mode");
   if(state!=="playing") return;
   if(reason==="level") {
    if(xp<xpGoal) return;
@@ -637,7 +642,7 @@ kbd{padding:1px 5px;border:1px solid #52617b;border-bottom-width:3px;border-radi
    if(entry.index===3) frostTimer=.2;
   }
   if(choiceReason==="cache") freeChoices--;
-  state="playing";clearInput();overlay.classList.add("hidden");updateLoadout();updateHud();
+  state="playing";clearInput();overlay.classList.remove("upgrade-mode");overlay.classList.add("hidden");flash=Math.max(flash,.14);shake=Math.max(shake,4);ring(player.x,player.y,95,entry.kind==="evolution"?"#f4c96b":"#64e8d4",.55);audio.play(entry.kind==="evolution"?"jackpot":"level");updateLoadout();updateHud();
   if(freeChoices>0) openChoices("cache");
   else if(xp>=xpGoal) openChoices("level");
  }
@@ -685,7 +690,7 @@ kbd{padding:1px 5px;border:1px solid #52617b;border-bottom-width:3px;border-radi
  $("pauseButton").onclick=togglePause;
 
  function cancelBlueprint() {
-  blueprint=-1;$("placement").style.display="none";
+  blueprint=-1;wallLineStart=null;$("placement").style.display="none";
   document.querySelectorAll("[data-build]").forEach(b=>b.classList.remove("selected"));
  }
  function chooseBlueprint(type) {
@@ -695,7 +700,7 @@ kbd{padding:1px 5px;border:1px solid #52617b;border-bottom-width:3px;border-radi
   blueprint=type;
   mouse.x=W/2+65;mouse.y=H/2;
   $("placement").style.display="block";
-  $("placementText").textContent=buildTypes[type].name+" · "+cost(type)+" Scrap · Click/tap to place · ESC/right-click cancels";
+  $("placementText").textContent=type===2 ? "WALL LINE · click start, then click end · "+cost(type)+" Scrap per section · ESC cancels" : buildTypes[type].name+" · "+cost(type)+" Scrap · Click/tap to place · ESC/right-click cancels";
   updateHud();
  }
  $("cancelBuild").onclick=cancelBlueprint;
@@ -710,7 +715,7 @@ kbd{padding:1px 5px;border:1px solid #52617b;border-bottom-width:3px;border-radi
   if(type===0 && structures.active.filter(s=>!s.dead && s.type===0).length>=MAX_TURRETS) return false;
   const radius=buildTypes[type].radius;
   if(Math.hypot(x-player.x,y-player.y)<radius+player.radius+5) return false;
-  for(const s of structures.active) if(!s.dead && Math.hypot(x-s.x,y-s.y)<radius+s.radius+10) return false;
+  for(const s of structures.active) if(!s.dead && Math.hypot(x-s.x,y-s.y)<radius+s.radius+(type===2&&s.type===2?-24:10)) return false;
   for(const e of enemies.active) if(!e.dead && Math.hypot(x-e.x,y-e.y)<radius+e.radius+3) return false;
   return true;
  }
@@ -729,15 +734,27 @@ kbd{padding:1px 5px;border:1px solid #52617b;border-bottom-width:3px;border-radi
   grid.rebuild();burst(x,y,b.color,18,130);audio.play("build");
   return s;
  }
+ function wallLinePoints(a,b){
+  const d=Math.hypot(b.x-a.x,b.y-a.y),count=Math.max(1,Math.ceil(d/62)),pts=[];
+  for(let i=0;i<=count;i++){const t=i/count;pts.push({x:a.x+(b.x-a.x)*t,y:a.y+(b.y-a.y)*t});}
+  return pts;
+ }
  function placeBlueprint() {
   if(state!=="playing" || blueprint<0) return;
   const p=mouseWorld();
-  if(!placementValid(blueprint,p.x,p.y)) {
-   toast(meta.scrap<cost(blueprint) ? "NOT ENOUGH SCRAP" : "INVALID POSITION // RANGE 230 // 24 STRUCTURES / 12 TURRETS",2);
-   return;
+  if(blueprint===2){
+   if(!wallLineStart){
+    if(!placementValid(2,p.x,p.y)){toast("INVALID WALL START // MOVE CLOSER OR CLEAR THE AREA",2);return;}
+    wallLineStart={x:p.x,y:p.y};$("placementText").textContent="WALL START SET · move and click to confirm the wall line · ESC cancels";audio.play("build");return;
+   }
+   const pts=wallLinePoints(wallLineStart,p),price=cost(2)*pts.length;
+   if(meta.scrap<price){toast("NEED "+price+" SCRAP FOR "+pts.length+" WALL SECTIONS",2);return;}
+   if(structures.free.length<pts.length){toast("STRUCTURE CAP // SHORTEN THE WALL",2);return;}
+   for(const q of pts){if(meta.scrap<cost(2))break;createStructure(2,q.x,q.y);}
+   toast("WALL DEPLOYED // "+pts.length+" SECTIONS",1.5);cancelBlueprint();updateHud();return;
   }
-  createStructure(blueprint,p.x,p.y);
-  cancelBlueprint();updateHud();
+  if(!placementValid(blueprint,p.x,p.y)){toast(meta.scrap<cost(blueprint)?"NOT ENOUGH SCRAP":"INVALID POSITION // MOVE CLOSER OR CLEAR THE AREA",2);return;}
+  createStructure(blueprint,p.x,p.y);cancelBlueprint();updateHud();
  }
 
  window.addEventListener("keydown",event=>{
@@ -1355,14 +1372,15 @@ kbd{padding:1px 5px;border:1px solid #52617b;border-bottom-width:3px;border-radi
   return Math.abs(x-camera.x)<W/2+r && Math.abs(y-camera.y)<H/2+r;
  }
  function floor() {
-  ctx.fillStyle="#080d1a";ctx.fillRect(0,0,W,H);
+  const g=ctx.createRadialGradient(W/2-camera.x,H/2-camera.y,20,W/2-camera.x,H/2-camera.y,650);g.addColorStop(0,"#10201b");g.addColorStop(.35,"#0b1515");g.addColorStop(1,"#06090b");ctx.fillStyle=g;ctx.fillRect(0,0,W,H);
+  if(commandCore&&!commandCore.dead){const sx=W/2-camera.x+commandCore.x,sy=H/2-camera.y+commandCore.y;ctx.save();ctx.globalAlpha=.18;ctx.strokeStyle="#9fe870";ctx.lineWidth=2;ctx.setLineDash([12,14]);ctx.beginPath();ctx.arc(sx,sy,205+coreRank*45,0,TAU);ctx.stroke();ctx.setLineDash([]);ctx.restore();}
   const spacing=64,ox=((W/2-camera.x)%spacing+spacing)%spacing,oy=((H/2-camera.y)%spacing+spacing)%spacing;
-  ctx.lineWidth=1;ctx.strokeStyle="#162338";ctx.beginPath();
+  ctx.lineWidth=1;ctx.strokeStyle="#142521";ctx.beginPath();
   for(let x=ox;x<W;x+=spacing){ctx.moveTo(x,0);ctx.lineTo(x,H);}
   for(let y=oy;y<H;y+=spacing){ctx.moveTo(0,y);ctx.lineTo(W,y);}
   ctx.stroke();
   const large=256,bx=((W/2-camera.x)%large+large)%large,by=((H/2-camera.y)%large+large)%large;
-  ctx.strokeStyle="#2a4058";ctx.beginPath();
+  ctx.strokeStyle="#27413a";ctx.beginPath();
   for(let x=bx;x<W;x+=large) for(let y=by;y<H;y+=large) {
    ctx.moveTo(x-4,y);ctx.lineTo(x+4,y);ctx.moveTo(x,y-4);ctx.lineTo(x,y+4);
   }
@@ -1555,6 +1573,12 @@ kbd{padding:1px 5px;border:1px solid #52617b;border-bottom-width:3px;border-radi
  function drawBlueprint() {
   if(blueprint<0 || state!=="playing") return;
   const p=mouseWorld(),valid=placementValid(blueprint,p.x,p.y),b=buildTypes[blueprint];
+  if(blueprint===2 && wallLineStart){
+   const pts=wallLinePoints(wallLineStart,p),price=cost(2)*pts.length;
+   ctx.save();ctx.globalAlpha=.75;ctx.strokeStyle=meta.scrap>=price?"#c1a1ff":"#ff5b6e";ctx.lineWidth=8;ctx.setLineDash([12,7]);ctx.beginPath();ctx.moveTo(wallLineStart.x,wallLineStart.y);ctx.lineTo(p.x,p.y);ctx.stroke();ctx.setLineDash([]);
+   for(const q of pts) circle(q.x,q.y,10,meta.scrap>=price?"#c1a1ff33":"#ff5b6e33",meta.scrap>=price?"#d9c6ff":"#ff8a98",1.5);
+   ctx.fillStyle=meta.scrap>=price?"#e8ddff":"#ff9daa";ctx.font="bold 11px system-ui";ctx.textAlign="center";ctx.fillText(pts.length+" SECTIONS · "+price+" SCRAP",p.x,p.y-28);ctx.restore();return;
+  }
   circle(player.x,player.y,PLACE_RANGE+coreRank*45,"#71f6ff04","#71f6ff44");
   ctx.save();ctx.globalAlpha=.7;
   circle(p.x,p.y,b.radius+13,valid ? "#71f6ff15" : "#ff548b22",valid ? "#71f6ff" : "#ff548b",2);
@@ -1617,6 +1641,10 @@ kbd{padding:1px 5px;border:1px solid #52617b;border-bottom-width:3px;border-radi
    ctx.fillText("CHRONOS "+chronos.toFixed(1)+"s",W/2,194);
   }
   if(state==="playing") {
+   const indicators=[];
+   if(commandCore&&!commandCore.dead&&!visible(commandCore.x,commandCore.y,-20)) indicators.push({x:commandCore.x,y:commandCore.y,color:"#9fe870",label:"CORE"});
+   for(const p of pickups.active) if(p.kind==="supply"&&!visible(p.x,p.y,-20)) indicators.push({x:p.x,y:p.y,color:"#9fe870",label:"SUPPLY"});
+   for(const it of indicators.slice(0,4)){const a=Math.atan2(it.y-camera.y,it.x-camera.x),co=Math.cos(a),si=Math.sin(a),rr=Math.min((W/2-48)/Math.max(.001,Math.abs(co)),(H/2-62)/Math.max(.001,Math.abs(si)));const ix=W/2+co*rr,iy=H/2+si*rr;ctx.save();ctx.translate(ix,iy);ctx.rotate(a);ctx.beginPath();ctx.moveTo(11,0);ctx.lineTo(-8,-8);ctx.lineTo(-8,8);ctx.closePath();ctx.fillStyle=it.color;ctx.fill();ctx.rotate(-a);ctx.font="bold 9px system-ui";ctx.textAlign="center";ctx.fillStyle=it.color;ctx.fillText(it.label,0,-13);ctx.restore();}
    for(const e of enemies.active) {
     if(e.type!==3 || e.dead || visible(e.x,e.y,-20)) continue;
     const a=Math.atan2(e.y-camera.y,e.x-camera.x),cos=Math.cos(a),sin=Math.sin(a);
