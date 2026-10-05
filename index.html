@@ -118,6 +118,7 @@ kbd{padding:1px 5px;border:1px solid #52617b;border-bottom-width:3px;border-radi
   <div class="bar xp"><div class="fill" id="xpFill" style="width:0%"></div></div>
  </div>
 </div>
+<div id="versionTag" style="position:fixed;left:10px;bottom:8px;z-index:9;color:#70857a;font:800 10px/1 system-ui;letter-spacing:1px;pointer-events:none">v0.5.0 · THREAT WAVES</div>
 
 <div id="loadout"></div>
 <div id="toast" role="status"></div>
@@ -153,7 +154,8 @@ kbd{padding:1px 5px;border:1px solid #52617b;border-bottom-width:3px;border-radi
  const overlay = $("overlay");
  const panel = $("panel");
  const TAU = Math.PI * 2;
- const RUN_LENGTH = 600;
+ const RUN_LENGTH = 900;
+ const BUILD_VERSION = "v0.5.0 · THREAT WAVES";
  const SAVE_KEY = "neon-revenant-fortress-v1";
  const rand = (a,b) => a + Math.random() * (b-a);
  const clamp = (v,a,b) => Math.max(a,Math.min(b,v));
@@ -350,7 +352,7 @@ kbd{padding:1px 5px;border:1px solid #52617b;border-bottom-width:3px;border-radi
  let rotor=0,aimAngle=0,shake=0,flash=0,chronos=0,toastTimer=0,hudTimer=0;
  let runEarned=0,runSpent=0,entityId=0,lastFrame=0;
  let carriedSupply=0,bankedSupply=0,supplyTimer=4,baseDamageRank=0,baseFireRank=0,coreRank=0,commandCore=null;
- let assaultPhase="scavenge",phaseTimer=75,assaultNumber=0,assaultAngle=0,assaultSpawnTimer=0,resourceSites=[];
+ let assaultPhase="scavenge",phaseTimer=35,assaultNumber=0,assaultAngle=0,assaultSpawnTimer=0,resourceSites=[],threat=0,waveBudget=0,waveSpawned=0,waveKilled=0,waveStartKills=0,waveFronts=[];
  let classId=meta.frame,runMods={damage:1,speed:1,regen:0,scrap:1,structure:1,discount:1};
  let player={x:0,y:0,vx:0,vy:0,radius:13,hp:100,maxHp:100,invincible:0};
  let camera={x:0,y:0};
@@ -418,9 +420,38 @@ kbd{padding:1px 5px;border:1px solid #52617b;border-bottom-width:3px;border-radi
  function directionName(a){const n=["EAST","SOUTHEAST","SOUTH","SOUTHWEST","WEST","NORTHWEST","NORTH","NORTHEAST"];return n[Math.round(((a%TAU+TAU)%TAU)/(TAU/8))%8];}
  function createResourceSites(){resourceSites=[];for(let i=0;i<7;i++){const a=i*TAU/7+rand(-.25,.25),r=rand(560,980);resourceSites.push({x:Math.cos(a)*r,y:Math.sin(a)*r,stock:i<3?5:Math.floor(rand(6,10)),cooldown:0,phase:rand(0,TAU)});}}
  function updateResourceSites(dt){for(const s of resourceSites){s.phase+=dt;s.cooldown=Math.max(0,s.cooldown-dt);if(s.stock<=0&&s.cooldown<=0){s.stock=Math.random()<.3?8:5;s.cooldown=0;toast("SUPPLY SITE RESTOCKED",1.4);}if(s.stock>0&&s.cooldown<=0&&Math.hypot(player.x-s.x,player.y-s.y)<42){const take=Math.min(s.stock,Math.random()<.2?3:2);s.stock-=take;carriedSupply+=take;s.cooldown=s.stock<=0?45:1.2;floating(s.x,s.y-18,"+"+take+" SUPPLY","#9fe870",true);toast("SUPPLY ACQUIRED // RETURN IT TO THE COMMAND CORE",1.7);audio.play("build");}}}
- function spawnAssaultEnemy(){if(!commandCore)return;const r=rand(620,820),a=assaultAngle+rand(-.38,.38),old={x:camera.x,y:camera.y};camera.x=commandCore.x+Math.cos(a)*r-W/2;camera.y=commandCore.y+Math.sin(a)*r-H/2;const type=time>330&&Math.random()<.28?2:time>150&&Math.random()<.22?1:0;spawnEnemy(type);camera.x=old.x;camera.y=old.y;}
- function setPhase(n,d){assaultPhase=n;phaseTimer=d;if(n==="warning"){assaultAngle=rand(0,TAU);toast("⚠ "+directionName(assaultAngle)+" ASSAULT INBOUND // RETURN TO CORE",4);audio.play("boss");}if(n==="assault"){assaultNumber++;assaultSpawnTimer=0;toast("BASE ASSAULT "+assaultNumber+" // "+directionName(assaultAngle)+" FRONT",3);}if(n==="recovery")toast("ASSAULT BROKEN // REPAIR AND RESUPPLY",3);if(n==="scavenge")toast("SCAVENGE WINDOW // 75 SEC // REPAIR, BUILD, THEN PUSH OUT",2.5);}
- function updateAssault(dt){phaseTimer-=dt;if(assaultPhase==="warning"&&phaseTimer<=0)setPhase("assault",45);else if(assaultPhase==="assault"){assaultSpawnTimer-=dt;if(assaultSpawnTimer<=0){const n=1+Math.floor(assaultNumber/2);for(let i=0;i<n;i++)spawnAssaultEnemy();assaultSpawnTimer=Math.max(.38,1.15-assaultNumber*.09);}if(phaseTimer<=0)setPhase("recovery",20);}else if(assaultPhase==="recovery"&&phaseTimer<=0)setPhase("scavenge",75);else if(assaultPhase==="scavenge"&&phaseTimer<=0)setPhase("warning",15);}
+ function threatLevel(){return threat+time*.12+assaultNumber*6;}
+ function waveTarget(n){return Math.floor(16+n*10+Math.pow(n,1.72)*4+threatLevel()*.22);}
+ function waveType(){
+  const w=assaultNumber,t=threatLevel(),r=Math.random();
+  if(w>=5&&r<Math.min(.22,.05+w*.025))return 1;
+  if(w>=3&&r<Math.min(.46,.13+w*.045+t*.0008))return 2;
+  if(w>=2&&r<Math.min(.25,.06+w*.025))return 1;
+  return 0;
+ }
+ function spawnAssaultEnemy(){if(!commandCore)return;const front=waveFronts.length?waveFronts[Math.floor(Math.random()*waveFronts.length)]:assaultAngle,r=rand(620,820),a=front+rand(-.32,.32),old={x:camera.x,y:camera.y};camera.x=commandCore.x+Math.cos(a)*r-W/2;camera.y=commandCore.y+Math.sin(a)*r-H/2;spawnEnemy(waveType());camera.x=old.x;camera.y=old.y;}
+ function setPhase(n,d){
+  assaultPhase=n;phaseTimer=d;
+  if(n==="warning"){assaultAngle=rand(0,TAU);const fronts=assaultNumber>=3?2:1;waveFronts=[assaultAngle];if(fronts>1)waveFronts.push(assaultAngle+Math.PI+rand(-.55,.55));toast("⚠ WAVE "+(assaultNumber+1)+" INCOMING // "+(fronts>1?"MULTIPLE FRONTS":directionName(assaultAngle)),4.5);audio.play("boss");shake=Math.max(shake,8);}
+  if(n==="assault"){assaultNumber++;waveBudget=waveTarget(assaultNumber);waveSpawned=waveKilled=0;waveStartKills=kills;assaultSpawnTimer=0;threat+=5+assaultNumber*2;toast("WAVE "+assaultNumber+" // "+waveBudget+" HOSTILES // HOLD THE CORE",3.5);if(assaultNumber>=4&&assaultNumber%2===0)spawnEnemy(3);}
+  if(n==="recovery")toast("WAVE "+assaultNumber+" CLEARED // REPAIR NOW",3);
+  if(n==="scavenge")toast("SCAVENGE // "+Math.ceil(d)+" SEC UNTIL NEXT WARNING",2.5);
+ }
+ function updateAssault(dt){
+  threat+=dt*(.035+assaultNumber*.008);phaseTimer-=dt;
+  if(assaultPhase==="warning"&&phaseTimer<=0)setPhase("assault",0);
+  else if(assaultPhase==="assault"){
+   assaultSpawnTimer-=dt;
+   const alive=enemies.active.reduce((n,e)=>n+(!e.dead?1:0),0);
+   if(waveSpawned<waveBudget&&assaultSpawnTimer<=0){
+    const burst=Math.min(waveBudget-waveSpawned,1+Math.floor(assaultNumber/2));
+    for(let i=0;i<burst;i++){spawnAssaultEnemy();waveSpawned++;}
+    assaultSpawnTimer=Math.max(.18,.72-assaultNumber*.065-threatLevel()*.0015);
+   }
+   if(waveSpawned>=waveBudget&&alive===0)setPhase("recovery",16);
+  }else if(assaultPhase==="recovery"&&phaseTimer<=0)setPhase("scavenge",Math.max(22,34-assaultNumber*2));
+  else if(assaultPhase==="scavenge"&&phaseTimer<=0)setPhase("warning",8);
+ }
  function traitCost(index) {
   return Math.ceil(traits[index].base*Math.pow(meta.ranks[index]+1,traits[index].exponent));
  }
@@ -533,7 +564,7 @@ kbd{padding:1px 5px;border:1px solid #52617b;border-bottom-width:3px;border-radi
    discount:classId===0 ? .8 : 1
   };
   time=kills=xp=spawnTimer=shootTimer=shake=flash=chronos=rotor=laserTimer=0;
-  runEarned=runSpent=entityId=0;carriedSupply=bankedSupply=baseDamageRank=baseFireRank=coreRank=0;supplyTimer=4;commandCore=null;assaultPhase="scavenge";phaseTimer=75;assaultNumber=0;assaultAngle=0;assaultSpawnTimer=0;resourceSites=[];
+  runEarned=runSpent=entityId=0;carriedSupply=bankedSupply=baseDamageRank=baseFireRank=coreRank=0;supplyTimer=4;commandCore=null;assaultPhase="scavenge";phaseTimer=35;assaultNumber=0;assaultAngle=0;assaultSpawnTimer=0;resourceSites=[];threat=0;waveBudget=waveSpawned=waveKilled=waveStartKills=0;waveFronts=[];
   level=1;xpGoal=24;nextBoss=180;chainTimer=2;frostTimer=3;
   freeChoices=0;ranks.fill(0);ranks[0]=1;evolved.fill(false);
   if(classId===1) ranks[1]=1;
@@ -545,7 +576,7 @@ kbd{padding:1px 5px;border:1px solid #52617b;border-bottom-width:3px;border-radi
   state="playing";overlay.classList.add("hidden");
   $("pauseButton").textContent="PAUSE · P";
   updateHud();updateLoadout();
-  toast("BUILD YOUR PERIMETER // 40 STARTING SUPPLY // FIRST WAVE IN 75 SEC",4);
+  toast("FORTIFY NOW // WAVE 1 WARNING IN 35 SEC",4);
   
  }
  function togglePause() {
@@ -891,7 +922,7 @@ kbd{padding:1px 5px;border:1px solid #52617b;border-bottom-width:3px;border-radi
  }
  function killEnemy(e,instantScrap=false,noRare=false) {
   if(e.dead) return;
-  e.dead=true;kills++;
+  e.dead=true;kills++;threat+=e.type===3?8:e.type===1?1.8:e.type===2?1.4:.65;if(assaultPhase==="assault")waveKilled++;
   if(instantScrap) gainScrap(e.scrap,true);
   else addPickup("scrap",e.x+8,e.y,e.scrap);
   if(e.type===3) {
@@ -1291,7 +1322,7 @@ kbd{padding:1px 5px;border:1px solid #52617b;border-bottom-width:3px;border-radi
   const tracking=1-Math.exp(-8*dt);
   camera.x+=(player.x-camera.x)*tracking;camera.y+=(player.y-camera.y)*tracking;
 
-  if(time>=nextBoss && assaultPhase==="assault"){spawnEnemy(3);nextBoss+=180;}
+  
   // Wave-based combat: no constant arena spawns between assaults.
   // During scavenging, danger is concentrated around resource sites instead of the Core.
   spawnTimer-=dt;
@@ -1606,7 +1637,7 @@ kbd{padding:1px 5px;border:1px solid #52617b;border-bottom-width:3px;border-radi
   ctx.fillText(valid ? "PLACE · "+cost(blueprint)+" SUPPLY" : "BLOCKED / COST / CAP",p.x,p.y-b.radius-23);
  }
  function drawResourceSites(){for(const s of resourceSites){if(!visible(s.x,s.y,70))continue;ctx.save();ctx.translate(s.x,s.y);ctx.rotate(s.phase*.25);circle(0,0,30,"#13231a","#9fe87088",2);polygon(18,6,Math.PI/6);ctx.fillStyle=s.stock>0?"#9fe87033":"#273329";ctx.fill();ctx.strokeStyle=s.stock>0?"#b9ff91":"#56645b";ctx.stroke();ctx.rotate(-s.phase*.25);ctx.fillStyle=s.stock>0?"#d8ffc6":"#7d8b82";ctx.font="900 10px system-ui";ctx.textAlign="center";ctx.fillText(s.stock>0?"SUPPLY "+s.stock:(s.cooldown>0?"RESTOCK "+Math.ceil(s.cooldown)+"s":"RESTOCKING"),0,4);ctx.restore();}}
- function drawPhaseHud(){if(state!=="playing")return;ctx.save();ctx.textAlign="center";const d=assaultPhase==="warning"||assaultPhase==="assault";ctx.fillStyle=d?"#ff7888":"#9fe870";ctx.font="900 13px system-ui";ctx.fillText(phaseName()+" · "+Math.max(0,Math.ceil(phaseTimer))+"s"+(d?" · "+directionName(assaultAngle):""),W/2,34);ctx.font="800 10px system-ui";ctx.fillStyle=d?"#ffb0ba":"#b9d9c3";ctx.fillText(assaultPhase==="assault"?"ENEMIES ARE ATTACKING THE COMMAND CORE":assaultPhase==="warning"?"RETURN TO BASE AND MAN THE DEFENSES":"BASE QUIET · RESOURCE SITES REMAIN DANGEROUS",W/2,50);ctx.restore();}
+ function drawPhaseHud(){if(state!=="playing")return;ctx.save();ctx.textAlign="center";const d=assaultPhase==="warning"||assaultPhase==="assault";ctx.fillStyle=d?"#ff7888":"#9fe870";ctx.font="900 14px system-ui";let top;if(assaultPhase==="assault"){const alive=enemies.active.reduce((n,e)=>n+(!e.dead?1:0),0),remaining=Math.max(0,(waveBudget-waveSpawned)+alive);top="WAVE "+assaultNumber+" · "+remaining+" HOSTILES REMAINING";}else if(assaultPhase==="warning")top="⚠ WAVE "+(assaultNumber+1)+" INCOMING · "+Math.max(0,Math.ceil(phaseTimer))+"s";else top=(assaultPhase==="recovery"?"RECOVERY":"SCAVENGE")+" · "+Math.max(0,Math.ceil(phaseTimer))+"s";ctx.fillText(top,W/2,34);ctx.font="900 10px system-ui";const tl=threatLevel(),rating=tl<30?"LOW":tl<65?"RISING":tl<110?"HIGH":tl<165?"SEVERE":"EXTREME";ctx.fillStyle=rating==="EXTREME"?"#ff526b":rating==="SEVERE"?"#ff9a67":"#c4d7c8";ctx.fillText("THREAT "+rating+" · "+Math.floor(tl)+(assaultPhase==="warning"?" · "+(waveFronts.length>1?"MULTIPLE FRONTS":directionName(assaultAngle)):""),W/2,50);ctx.restore();}
  function draw() {
   ctx.setTransform(dpr*scale,0,0,dpr*scale,0,0);floor();
   ctx.save();
